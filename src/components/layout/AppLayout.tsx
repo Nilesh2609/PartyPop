@@ -1,18 +1,27 @@
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react'
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { SubscriptionBootstrap } from '@/components/auth/SubscriptionBootstrap'
 import { PartyPopWordmark } from '@/components/brand/PartyPopWordmark'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export function AppLayout() {
+  const { pathname } = useLocation()
+  const isLanding = pathname === '/'
+  const shellWidth = isLanding ? 'max-w-6xl' : 'max-w-3xl'
+
   return (
     <div className="bg-background flex min-h-svh flex-col">
       <SignedIn>
         <SubscriptionBootstrap />
       </SignedIn>
       <header className="border-border bg-header shrink-0 border-b border-[0.5px] shadow-[0_1px_0_0_color-mix(in_srgb,var(--brand-border)_65%,transparent)]">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4 md:px-6">
+        <div
+          className={cn(
+            'mx-auto flex w-full items-center justify-between gap-4 px-4 py-4 md:px-6',
+            shellWidth,
+          )}
+        >
           <Link to="/" className="focus-visible:ring-ring rounded-sm focus-visible:ring-2 focus-visible:outline-none">
             <PartyPopWordmark />
           </Link>
@@ -41,8 +50,13 @@ export function AppLayout() {
         </div>
       </header>
       <main className="bg-background flex-1">
-        <div className="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-14">
-        <Outlet />
+        <div
+          className={cn(
+            'mx-auto w-full px-4 py-10 md:px-6 md:py-14',
+            shellWidth,
+          )}
+        >
+          <Outlet />
         </div>
       </main>
     </div>

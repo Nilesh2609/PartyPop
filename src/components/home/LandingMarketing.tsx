@@ -40,7 +40,7 @@ const PILLARS = [
   },
 ] as const
 
-function FullBleed({
+function SectionShell({
   children,
   className,
 }: {
@@ -48,86 +48,84 @@ function FullBleed({
   className?: string
 }) {
   return (
-    <div
+    <section
       className={cn(
-        'relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2',
+        'border-border rounded-2xl border-[0.5px] px-4 py-12 shadow-sm md:px-8 md:py-14 lg:py-16',
         className,
       )}
     >
       {children}
-    </div>
+    </section>
   )
 }
 
 export function LandingMarketing() {
   return (
-    <div className="overflow-x-hidden pb-16 md:pb-24">
-      {/* Hero — Stripe-style split + strong headline */}
-      <FullBleed className="border-border border-b border-[0.5px] bg-header">
-        <div className="mx-auto max-w-6xl px-4 py-12 md:px-8 md:py-16 lg:py-20">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div>
-              <p className="text-muted-foreground mb-4 text-[11px] font-medium tracking-[0.1em] uppercase">
-                Party planning for busy parents
-              </p>
-              <h1 className="text-foreground font-display text-[clamp(2.125rem,5.5vw,3.5rem)] leading-[1.08] font-normal tracking-tight">
-                From &ldquo;we should do something&rdquo; to party day —{' '}
-                <span className="text-primary">without the overwhelm.</span>
-              </h1>
-              <p className="text-muted-foreground mt-6 max-w-xl text-base leading-relaxed md:text-[17px] md:leading-relaxed">
-                PartyPop is the organized surface that turns your answers into a
-                clear plan: what to do, what to buy, when to do it, and where to
-                look for vendors — so you&apos;re not juggling ten open tabs the
-                night before.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Link
-                  to="/sign-in"
-                  className={cn(buttonVariants({ size: 'lg' }))}
-                >
-                  Start free
-                </Link>
-                <Link
-                  to="/sign-in"
-                  className={cn(
-                    buttonVariants({ variant: 'outline', size: 'lg' }),
-                  )}
-                >
-                  Sign in
-                </Link>
-              </div>
-              <p className="text-muted-foreground mt-4 text-xs">
-                Free to save plans · Pro when you want more
-              </p>
+    <div className="space-y-10 pb-12 md:space-y-14 md:pb-20">
+      {/* Hero — wide column (max-w-6xl shell), no viewport breakout = no clipping */}
+      <SectionShell className="bg-card">
+        <div className="grid min-w-0 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="min-w-0">
+            <p className="text-muted-foreground mb-4 text-[11px] font-medium tracking-[0.1em] uppercase">
+              Party planning for busy parents
+            </p>
+            <h1 className="text-foreground font-display text-[clamp(1.875rem,4.5vw,3.25rem)] leading-[1.08] font-normal tracking-tight">
+              From &ldquo;we should do something&rdquo; to party day —{' '}
+              <span className="text-primary">without the overwhelm.</span>
+            </h1>
+            <p className="text-muted-foreground mt-6 max-w-xl text-base leading-relaxed md:text-[17px] md:leading-relaxed">
+              PartyPop is the organized surface that turns your answers into a
+              clear plan: what to do, what to buy, when to do it, and where to
+              look for vendors — so you&apos;re not juggling ten open tabs the
+              night before.
+            </p>
+            <div className="mt-8 flex min-w-0 flex-wrap items-center gap-3">
+              <Link
+                to="/sign-in"
+                className={cn(buttonVariants({ size: 'lg' }))}
+              >
+                Start free
+              </Link>
+              <Link
+                to="/sign-in"
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'lg' }),
+                )}
+              >
+                Sign in
+              </Link>
             </div>
+            <p className="text-muted-foreground mt-4 text-xs">
+              Free to save plans · Pro when you want more
+            </p>
+          </div>
+          <div className="min-w-0">
             <LandingProductPreview />
           </div>
         </div>
-      </FullBleed>
+      </SectionShell>
 
-      {/* Metrics strip — Stripe-style proof row */}
-      <FullBleed className="border-border bg-card border-b border-[0.5px]">
-        <div className="mx-auto max-w-6xl px-4 py-10 md:px-8 md:py-14">
-          <p className="text-muted-foreground mb-8 text-center text-[11px] font-medium tracking-[0.12em] uppercase md:text-left">
-            What you get
-          </p>
-          <ul className="grid gap-10 sm:grid-cols-3 sm:gap-8">
-            {STATS.map((s) => (
-              <li key={s.label} className="text-center sm:text-left">
-                <p className="text-foreground font-display text-4xl leading-none font-normal tracking-tight md:text-5xl">
-                  {s.value}
-                </p>
-                <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                  {s.label}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </FullBleed>
+      {/* Metrics */}
+      <SectionShell className="bg-header">
+        <p className="text-muted-foreground mb-8 text-center text-[11px] font-medium tracking-[0.12em] uppercase md:text-left">
+          What you get
+        </p>
+        <ul className="grid gap-10 sm:grid-cols-3 sm:gap-8">
+          {STATS.map((s) => (
+            <li key={s.label} className="min-w-0 text-center sm:text-left">
+              <p className="text-foreground font-display text-4xl leading-none font-normal tracking-tight md:text-5xl">
+                {s.value}
+              </p>
+              <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
+                {s.label}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </SectionShell>
 
       {/* Feature grid */}
-      <section className="mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-20">
+      <section className="min-w-0 px-0 py-2 md:py-4">
         <div className="max-w-2xl">
           <p className="text-muted-foreground text-[11px] font-medium tracking-[0.1em] uppercase">
             How it works
@@ -140,14 +138,14 @@ export function LandingMarketing() {
             No clutter, no second accent color, no maze of settings.
           </p>
         </div>
-        <ul className="mt-12 grid gap-8 sm:grid-cols-2 lg:gap-10">
+        <ul className="mt-10 grid min-w-0 gap-6 sm:grid-cols-2 md:mt-12 lg:gap-8">
           {PILLARS.map(({ icon: Icon, title, body }) => (
             <li
               key={title}
-              className="border-border bg-card rounded-lg border-[0.5px] p-6 shadow-sm transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--brand-surface)_92%,var(--brand-canvas))] md:p-7"
+              className="border-border bg-card min-w-0 rounded-lg border-[0.5px] p-6 shadow-sm transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--brand-surface)_92%,var(--brand-canvas))] md:p-7"
             >
               <Icon
-                className="text-primary size-9 stroke-[1.5]"
+                className="text-primary size-9 shrink-0 stroke-[1.5]"
                 aria-hidden
               />
               <h3 className="text-foreground mt-4 font-display text-lg font-normal tracking-tight">
@@ -161,27 +159,27 @@ export function LandingMarketing() {
         </ul>
       </section>
 
-      {/* Social proof line — Stripe “backbone” tone, single column */}
-      <FullBleed className="border-border bg-muted/40 border-y border-[0.5px]">
-        <div className="mx-auto max-w-3xl px-4 py-12 text-center md:px-8 md:py-14">
+      {/* Quote */}
+      <SectionShell className="bg-muted/50 text-center md:text-left">
+        <div className="mx-auto max-w-3xl md:mx-0">
           <ClipboardList
-            className="text-primary mx-auto size-8 stroke-[1.5]"
+            className="text-primary mx-auto size-8 stroke-[1.5] md:mx-0"
             aria-hidden
           />
           <blockquote className="text-foreground mt-6 font-display text-xl leading-snug font-normal tracking-tight md:text-2xl">
             &ldquo;Clients don&apos;t need another app — they need to see the
             path from panic to &lsquo;we&apos;ve got this.&rsquo;&rdquo;
           </blockquote>
-          <p className="text-muted-foreground mt-4 text-sm">
+          <p className="text-muted-foreground mt-4 text-sm leading-relaxed">
             PartyPop keeps that path on one screen: summary, tasks, shopping,
             schedule, vendors, guests.
           </p>
         </div>
-      </FullBleed>
+      </SectionShell>
 
       {/* Closing CTA */}
-      <section className="mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-20">
-        <div className="border-primary bg-card rounded-2xl border px-6 py-10 text-center md:px-12 md:py-14">
+      <section className="min-w-0 px-0 py-2">
+        <div className="border-primary bg-card rounded-2xl border px-5 py-10 text-center shadow-sm md:px-12 md:py-14">
           <h2 className="text-foreground font-display text-2xl font-normal tracking-tight md:text-[28px]">
             Ready to show parents something they understand in five seconds?
           </h2>
