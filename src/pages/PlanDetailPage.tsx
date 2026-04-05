@@ -88,7 +88,7 @@ export function PlanDetailPage() {
     return (
       <p className="text-muted-foreground text-sm">
         Plan not found.{' '}
-        <Link to="/plans" className="text-primary underline">
+        <Link to="/" className="text-primary underline">
           Back to plans
         </Link>
       </p>
