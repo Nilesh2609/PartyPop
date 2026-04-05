@@ -1,100 +1,44 @@
 import { SignedIn, SignedOut } from '@clerk/clerk-react'
 import { Link } from 'react-router-dom'
 import { CountdownHero } from '@/components/home/CountdownHero'
+import { LandingMarketing } from '@/components/home/LandingMarketing'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 
 export function HomePage() {
   return (
-    <div className="animate-enter flex flex-col gap-16 md:gap-24">
-      <CountdownHero />
+    <>
+      <SignedOut>
+        <LandingMarketing />
+      </SignedOut>
 
-      <section className="mx-auto max-w-lg space-y-6 text-center">
-        <h1 className="text-foreground font-display text-[22px] leading-snug font-normal tracking-tight md:text-[26px]">
-          Plan a kid&apos;s party without the noise.
-        </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-          One quiet, organized flow — checklist, shopping list, day-of timeline,
-          and local vendor ideas tuned to your budget.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3 pt-2">
-          <SignedIn>
-            <Link
-              to="/plan/new"
-              className={cn(buttonVariants({ size: 'lg' }))}
-            >
-              Start planning
+      <SignedIn>
+        <div className="animate-enter mx-auto max-w-xl space-y-10 md:space-y-14">
+          <header className="space-y-2 text-center">
+            <p className="text-muted-foreground text-[11px] font-medium tracking-[0.08em] uppercase">
+              Your plans
+            </p>
+            <h1 className="text-foreground font-display text-[clamp(1.75rem,4vw,2.25rem)] leading-snug font-normal tracking-tight">
+              Pick up where you left off
+            </h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Next party countdown below — or start something new.
+            </p>
+          </header>
+          <CountdownHero />
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link to="/plan/new" className={cn(buttonVariants({ size: 'lg' }))}>
+              New party
             </Link>
             <Link
               to="/plans"
               className={cn(buttonVariants({ size: 'lg', variant: 'outline' }))}
             >
-              View my plans
+              All my plans
             </Link>
-          </SignedIn>
-          <SignedOut>
-            <Link
-              to="/sign-in"
-              className={cn(buttonVariants({ size: 'lg' }))}
-            >
-              Plan my kid&apos;s party
-            </Link>
-          </SignedOut>
+          </div>
         </div>
-      </section>
-
-      <section className="mx-auto flex max-w-lg flex-col gap-12">
-        <div className="space-y-2">
-          <h2 className="text-foreground font-display text-[22px] font-normal tracking-tight">
-            Guided flow
-          </h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Ten focused questions so you&apos;re done before decision fatigue
-            hits.
-          </p>
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-foreground font-display text-[22px] font-normal tracking-tight">
-            Your plan
-          </h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Checklist, shopping list, and timeline you can edit anytime.
-          </p>
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-foreground font-display text-[22px] font-normal tracking-tight">
-            Local vendors
-          </h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Shortlists for inflatables, cakes, and entertainment in your launch
-            city.
-          </p>
-        </div>
-      </section>
-
-      <SignedOut>
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle>Sign in to save plans</CardTitle>
-            <CardDescription>
-              Create a free account to generate, save, and revisit party plans
-              across devices.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/sign-in" className={cn(buttonVariants())}>
-              Create account or sign in
-            </Link>
-          </CardContent>
-        </Card>
-      </SignedOut>
-    </div>
+      </SignedIn>
+    </>
   )
 }
