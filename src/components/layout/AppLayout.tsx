@@ -41,7 +41,7 @@ export function AppLayout() {
             <SignedOut>
               <Link
                 to="/sign-in"
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                className={cn(buttonVariants({ size: 'sm' }))}
               >
                 Sign in
               </Link>
