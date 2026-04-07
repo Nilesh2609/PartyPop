@@ -6,6 +6,7 @@ import { CountdownHero } from '@/components/home/CountdownHero'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { daysUntilParty } from '@/lib/partyCountdown'
 import {
   Card,
   CardDescription,
@@ -34,6 +35,20 @@ export function PartyPlansOverview() {
       <p className="text-muted-foreground text-sm">Loading your plans…</p>
     )
   }
+
+  const upcomingPlans = plans
+    .filter((p) => {
+      const days = daysUntilParty(p.partyDate)
+      return days === null || days >= 0
+    })
+    .sort((a, b) => a.partyDate.localeCompare(b.partyDate))
+
+  const pastPlans = plans
+    .filter((p) => {
+      const days = daysUntilParty(p.partyDate)
+      return days !== null && days < 0
+    })
+    .sort((a, b) => b.partyDate.localeCompare(a.partyDate))
 
   return (
     <div className="animate-enter space-y-8 md:space-y-10">
@@ -72,26 +87,63 @@ export function PartyPlansOverview() {
           </CardHeader>
         </Card>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {plans.map((p: Doc<'partyPlans'>) => (
-            <li key={p._id}>
-              <Link to={`/plans/${p._id}`}>
-                <Card className="hover:bg-muted/40 transition-colors">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base">{p.title}</CardTitle>
-                      <StatusBadge status={p.status} />
-                    </div>
-                    <CardDescription>
-                      {p.theme} · {p.partyDate} · {p.headcount} kids
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-8">
+          {upcomingPlans.length > 0 ? (
+            <PlansGrid plans={upcomingPlans} />
+          ) : (
+            <Card className="border-dashed">
+              <CardHeader>
+                <CardTitle>No upcoming plans</CardTitle>
+                <CardDescription>
+                  You can start a new party or review past parties below.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+
+          {pastPlans.length > 0 && (
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-foreground font-display text-[20px] font-normal tracking-tight">
+                  Past party plans
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Previous parties stay here for reference and easy reuse.
+                </p>
+              </div>
+              <PlansGrid plans={pastPlans} />
+            </section>
+          )}
+        </div>
       )}
     </div>
+  )
+}
+
+function PlansGrid({ plans }: { plans: Doc<'partyPlans'>[] }) {
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2">
+      {plans.map((p: Doc<'partyPlans'>) => (
+        <li key={p._id}>
+          <Link to={`/plans/${p._id}`}>
+            <Card className="hover:bg-muted/40 transition-colors">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-base">
+                    {p.childNameOrNickname?.trim()
+                      ? `${p.childNameOrNickname.trim()}'s birthday`
+                      : p.title}
+                  </CardTitle>
+                  <StatusBadge status={p.status} />
+                </div>
+                <CardDescription>
+                  {p.theme} · {p.partyDate} · {p.headcount} kids
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        </li>
+      ))}
+    </ul>
   )
 }

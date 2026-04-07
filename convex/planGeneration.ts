@@ -48,21 +48,26 @@ function mockPlan(input: {
   zipCode: string
   ageRangeMin: number
   ageRangeMax: number
+  preferredBudgetAllocationJson?: string
 }): z.infer<typeof generatedPlanSchema> {
   const budgetEur = (input.budgetCents / 100).toFixed(0)
   return {
     overviewMarkdown: `## ${input.theme} party\n\n- **When:** ${input.partyDate}\n- **Guests:** ~${input.headcount} kids (ages ${input.ageRangeMin}–${input.ageRangeMax})\n- **Budget:** about €${budgetEur} total\n- **Area:** ${input.zipCode}\n\nFocus on one wow moment, keep food simple, and line up backup indoor games if weather shifts.`,
-    budgetAllocationJson: JSON.stringify(
-      {
-        decor: 0.2,
-        food: 0.35,
-        entertainment: 0.25,
-        cake: 0.12,
-        contingency: 0.08,
-      },
-      null,
-      2,
-    ),
+    budgetAllocationJson:
+      input.preferredBudgetAllocationJson &&
+      input.preferredBudgetAllocationJson.trim().length > 0
+        ? input.preferredBudgetAllocationJson
+        : JSON.stringify(
+            {
+              decor: 0.2,
+              food: 0.35,
+              entertainment: 0.25,
+              cake: 0.12,
+              contingency: 0.08,
+            },
+            null,
+            2,
+          ),
     tasks: [
       { title: 'Send invites with RSVP date', dueDate: '14 days before' },
       { title: 'Order cake / confirm pickup time', dueDate: '7 days before' },
@@ -129,6 +134,7 @@ async function callOpenAi(
       zipCode: plan.zipCode,
       ageRangeMin: plan.ageRangeMin,
       ageRangeMax: plan.ageRangeMax,
+      preferredBudgetAllocationJson: plan.budgetAllocationJson,
     })
   }
 
@@ -147,6 +153,7 @@ async function callOpenAi(
     activityStyle: plan.activityStyle,
     childNameOrNickname: plan.childNameOrNickname,
     rsvpDeadline: plan.rsvpDeadline,
+    preferredBudgetAllocationJson: plan.budgetAllocationJson,
   })
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -164,7 +171,7 @@ async function callOpenAi(
           content: `You are Partypop, a kids birthday party planner. Return ONLY valid JSON matching this shape:
 {
   "overviewMarkdown": string (markdown sections),
-  "budgetAllocationJson": string (stringified JSON object with numeric shares summing to ~1 for keys: decor, food, entertainment, cake, contingency),
+  "budgetAllocationJson": string (stringified JSON object with numeric shares summing to ~1. If preferredBudgetAllocationJson is provided, keep those category keys and only adjust values),
   "tasks": [{"title": string, "dueDate"?: string}] (3-24 items),
   "shopping": [{"category": string, "label": string, "quantity"?: string}] (4-40 items, categories like decor, food, supplies, party),
   "timeline": [{"startTime": string, "endTime": string, "label": string}] (4-20 items, day-of schedule). For startTime/endTime use plain language parents understand (e.g. "About an hour before guests arrive", "Party starts", "First 20 minutes", "About 1 hour into the party"). Never use airport-style codes like T-60m, T-0, +15m, or "Start/+45m" offsets.

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { planWizardSchema, wizardValuesToCents } from './planWizardSchema'
+import {
+  planWizardSchema,
+  wizardBudgetCategoriesToAllocationJson,
+  wizardValuesToCents,
+} from './planWizardSchema'
 
 describe('planWizardSchema', () => {
   it('accepts a valid payload', () => {
@@ -9,6 +13,7 @@ describe('planWizardSchema', () => {
       theme: 'Space',
       headcount: 10,
       budgetEuros: 400,
+      budgetCategories: ['Food & drinks', 'Cake'],
       partyDate: '2026-06-01',
       zipCode: '30301',
       ageRangeMin: 5,
@@ -29,6 +34,7 @@ describe('planWizardSchema', () => {
       theme: 'Space',
       headcount: 10,
       budgetEuros: 400,
+      budgetCategories: ['Food & drinks', 'Cake'],
       partyDate: '2026-06-01',
       zipCode: '30301',
       ageRangeMin: 9,
@@ -52,6 +58,7 @@ describe('wizardValuesToCents', () => {
         theme: 'th',
         headcount: 1,
         budgetEuros: 12.34,
+        budgetCategories: ['Food & drinks'],
         partyDate: '2026-01-01',
         zipCode: '30301',
         ageRangeMin: 4,
@@ -60,5 +67,26 @@ describe('wizardValuesToCents', () => {
         activityStyle: 'games',
       }),
     ).toBe(1234)
+  })
+
+  it('serializes budget categories to allocation json', () => {
+    const json = wizardBudgetCategoriesToAllocationJson({
+      title: 't',
+      childNameOrNickname: 'c',
+      theme: 'th',
+      headcount: 1,
+      budgetEuros: 100,
+      budgetCategories: ['Food & drinks', 'Cake'],
+      partyDate: '2026-01-01',
+      zipCode: '30301',
+      ageRangeMin: 4,
+      ageRangeMax: 6,
+      venueType: 'home',
+      activityStyle: 'games',
+    })
+    expect(JSON.parse(json)).toEqual({
+      food_and_drinks: 0.5,
+      cake: 0.5,
+    })
   })
 })

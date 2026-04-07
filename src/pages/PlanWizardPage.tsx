@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/incompatible-library -- react-hook-form watch */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Plus, Trash2 } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useMemo } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
@@ -26,6 +27,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   planWizardSchema,
+  wizardBudgetCategoriesToAllocationJson,
   type PlanWizardValues,
   wizardValuesToCents,
 } from '@/lib/planWizardSchema'
@@ -39,6 +41,13 @@ const defaultValues: PlanWizardValues = {
   theme: '',
   headcount: 12,
   budgetEuros: 350,
+  budgetCategories: [
+    'Food & drinks',
+    'Entertainment',
+    'Decor & setup',
+    'Cake',
+    'Buffer / extras',
+  ],
   partyDate: '',
   zipCode: '',
   ageRangeMin: 6,
@@ -60,6 +69,7 @@ export function PlanWizardPage() {
     defaultValues: { ...defaultValues, ...draft },
     mode: 'onBlur',
   })
+  const budgetCategories = form.watch('budgetCategories') ?? []
 
 
   const progress = useMemo(
@@ -74,7 +84,7 @@ export function PlanWizardPage() {
       case 1:
         return ['theme']
       case 2:
-        return ['headcount', 'budgetEuros']
+        return ['headcount', 'budgetEuros', 'budgetCategories']
       case 3:
         return ['partyDate']
       case 4:
@@ -123,6 +133,7 @@ export function PlanWizardPage() {
         theme: parsed.data.theme,
         headcount: parsed.data.headcount,
         budgetCents: wizardValuesToCents(parsed.data),
+        budgetAllocationJson: wizardBudgetCategoriesToAllocationJson(parsed.data),
         partyDate: parsed.data.partyDate,
         zipCode: parsed.data.zipCode,
         ageRangeMin: parsed.data.ageRangeMin,
@@ -241,6 +252,56 @@ export function PlanWizardPage() {
                 {formState.errors.budgetEuros && (
                   <p className="text-destructive text-sm">
                     {formState.errors.budgetEuros.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Budget categories</Label>
+                <p className="text-muted-foreground text-xs">
+                  Add, remove, or rename categories for your budget split.
+                </p>
+                <div className="space-y-2">
+                  {budgetCategories.map((_, index) => (
+                    <div key={`budget-category-${index}`} className="flex items-center gap-2">
+                      <Input
+                        placeholder="Category name"
+                        {...register(`budgetCategories.${index}`)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={`Remove budget category ${index + 1}`}
+                        onClick={() =>
+                          setValue(
+                            'budgetCategories',
+                            budgetCategories.filter((__, i) => i !== index),
+                            { shouldValidate: true },
+                          )
+                        }
+                        disabled={budgetCategories.length <= 1}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setValue('budgetCategories', [...budgetCategories, ''], {
+                      shouldValidate: true,
+                    })
+                  }
+                >
+                  <Plus className="size-4" />
+                  Add category
+                </Button>
+                {formState.errors.budgetCategories && (
+                  <p className="text-destructive text-sm">
+                    {formState.errors.budgetCategories.message}
                   </p>
                 )}
               </div>

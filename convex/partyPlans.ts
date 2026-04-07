@@ -29,6 +29,7 @@ const planInputValidator = {
   theme: v.string(),
   headcount: v.number(),
   budgetCents: v.number(),
+  budgetAllocationJson: v.optional(v.string()),
   partyDate: v.string(),
   zipCode: v.string(),
   ageRangeMin: v.number(),
@@ -192,7 +193,7 @@ export const createAndGenerate = mutation({
       childNameOrNickname: args.childNameOrNickname,
       rsvpDeadline: args.rsvpDeadline,
       overviewMarkdown: undefined,
-      budgetAllocationJson: undefined,
+      budgetAllocationJson: args.budgetAllocationJson,
       createdAt: now,
       updatedAt: now,
     })
@@ -252,6 +253,19 @@ export const updateOverview = mutation({
     title: v.optional(v.string()),
     overviewMarkdown: v.optional(v.string()),
     budgetAllocationJson: v.optional(v.string()),
+    budgetCents: v.optional(v.number()),
+    theme: v.optional(v.string()),
+    headcount: v.optional(v.number()),
+    partyDate: v.optional(v.string()),
+    zipCode: v.optional(v.string()),
+    ageRangeMin: v.optional(v.number()),
+    ageRangeMax: v.optional(v.number()),
+    specialNeeds: v.optional(v.string()),
+    venueType: v.optional(v.string()),
+    dietaryNotes: v.optional(v.string()),
+    activityStyle: v.optional(v.string()),
+    childNameOrNickname: v.optional(v.string()),
+    rsvpDeadline: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireIdentity(ctx.auth)
@@ -264,6 +278,19 @@ export const updateOverview = mutation({
       overviewMarkdown: args.overviewMarkdown ?? plan.overviewMarkdown,
       budgetAllocationJson:
         args.budgetAllocationJson ?? plan.budgetAllocationJson,
+      budgetCents: args.budgetCents ?? plan.budgetCents,
+      theme: args.theme ?? plan.theme,
+      headcount: args.headcount ?? plan.headcount,
+      partyDate: args.partyDate ?? plan.partyDate,
+      zipCode: args.zipCode ?? plan.zipCode,
+      ageRangeMin: args.ageRangeMin ?? plan.ageRangeMin,
+      ageRangeMax: args.ageRangeMax ?? plan.ageRangeMax,
+      specialNeeds: args.specialNeeds ?? plan.specialNeeds,
+      venueType: args.venueType ?? plan.venueType,
+      dietaryNotes: args.dietaryNotes ?? plan.dietaryNotes,
+      activityStyle: args.activityStyle ?? plan.activityStyle,
+      childNameOrNickname: args.childNameOrNickname ?? plan.childNameOrNickname,
+      rsvpDeadline: args.rsvpDeadline ?? plan.rsvpDeadline,
       updatedAt: Date.now(),
     })
   },
@@ -277,6 +304,59 @@ export const archive = mutation({
     if (!plan) throw new Error('Plan not found')
     assertPlanOwner(plan, user.subject)
     await ctx.db.patch(planId, { archived, updatedAt: Date.now() })
+  },
+})
+
+export const deletePlan = mutation({
+  args: { planId: v.id('partyPlans') },
+  handler: async (ctx, { planId }) => {
+    const user = await requireIdentity(ctx.auth)
+    const plan = await ctx.db.get(planId)
+    if (!plan) throw new Error('Plan not found')
+    assertPlanOwner(plan, user.subject)
+
+    const tasks = await ctx.db
+      .query('planTasks')
+      .withIndex('by_plan_sort', (q) => q.eq('planId', planId))
+      .collect()
+    for (const row of tasks) {
+      await ctx.db.delete(row._id)
+    }
+
+    const shopping = await ctx.db
+      .query('planShoppingItems')
+      .withIndex('by_plan_sort', (q) => q.eq('planId', planId))
+      .collect()
+    for (const row of shopping) {
+      await ctx.db.delete(row._id)
+    }
+
+    const timeline = await ctx.db
+      .query('planTimelineSlots')
+      .withIndex('by_plan_sort', (q) => q.eq('planId', planId))
+      .collect()
+    for (const row of timeline) {
+      await ctx.db.delete(row._id)
+    }
+
+    const guests = await ctx.db
+      .query('guests')
+      .withIndex('by_plan', (q) => q.eq('planId', planId))
+      .collect()
+    for (const row of guests) {
+      await ctx.db.delete(row._id)
+    }
+
+    const contacts = await ctx.db
+      .query('vendorContacts')
+      .collect()
+    for (const row of contacts) {
+      if (row.planId === planId) {
+        await ctx.db.delete(row._id)
+      }
+    }
+
+    await ctx.db.delete(planId)
   },
 })
 

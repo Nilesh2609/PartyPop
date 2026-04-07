@@ -19,10 +19,14 @@ function pickNextPlan(plans: Doc<'partyPlans'>[]): Doc<'partyPlans'> | null {
     .filter(
       (x): x is { p: Doc<'partyPlans'>; days: number } => x.days !== null,
     )
-    .sort((a, b) => a.days - b.days)
-  const upcoming = scored.find((x) => x.days >= 0)
-  if (upcoming) return upcoming.p
-  return scored[scored.length - 1]?.p ?? null
+
+  const anyUpcoming = scored
+    .filter((x) => x.days >= 0)
+    .sort((a, b) => a.days - b.days || b.p.createdAt - a.p.createdAt)
+  if (anyUpcoming.length > 0) return anyUpcoming[0].p
+
+  // If all known dates are in the past, don't render a stale countdown.
+  return null
 }
 
 function CountdownBlock({
@@ -80,10 +84,8 @@ function SignedInCountdown() {
   }
   const rawDays = daysUntilParty(plan.partyDate) ?? 0
   const formatted = formatPartyWeekdayLong(plan.partyDate) ?? plan.partyDate
-  const eyebrow =
-    plan.childNameOrNickname != null && plan.childNameOrNickname.length > 0
-      ? `${plan.childNameOrNickname}'s party`
-      : plan.title
+  const kidName = plan.childNameOrNickname?.trim()
+  const eyebrow = kidName && kidName.length > 0 ? `${kidName}'s birthday` : plan.title
   const value = Math.max(0, rawDays)
   const unit = value === 1 ? 'day' : 'days'
   return (

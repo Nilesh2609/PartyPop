@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../convex/_generated/api'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { BudgetBreakdown } from '@/components/plan/BudgetBreakdown'
@@ -12,6 +12,15 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -19,11 +28,14 @@ import {
   ClipboardList,
   Clock,
   ListChecks,
+  Pencil,
   ShoppingBasket,
   Store,
+  Trash2,
   Users,
 } from 'lucide-react'
 import {
+  formatPartyWeekdayLong,
   parsePlanDate,
   startOfLocalDay,
 } from '@/lib/partyCountdown'
@@ -53,6 +65,7 @@ type PlanBundle = {
 
 export function PlanDetailPage() {
   const { planId } = useParams<{ planId: string }>()
+  const navigate = useNavigate()
   const id = planId as Id<'partyPlans'> | undefined
 
   const bundle = useQuery(
@@ -71,6 +84,7 @@ export function PlanDetailPage() {
   const addTask = useMutation(api.partyPlans.addTask)
   const setShoppingDone = useMutation(api.partyPlans.setShoppingDone)
   const addShopping = useMutation(api.partyPlans.addShoppingItem)
+  const deletePlan = useMutation(api.partyPlans.deletePlan)
   const addGuest = useMutation(api.guests.addGuest)
   const logVendor = useMutation(api.vendors.logVendorContact)
 
@@ -111,6 +125,8 @@ export function PlanDetailPage() {
       addTask={addTask}
       setShoppingDone={setShoppingDone}
       addShopping={addShopping}
+      deletePlan={deletePlan}
+      navigate={navigate}
       addGuest={addGuest}
       logVendor={logVendor}
     />
@@ -128,6 +144,8 @@ function PlanDetailContent({
   addTask,
   setShoppingDone,
   addShopping,
+  deletePlan,
+  navigate,
   addGuest,
   logVendor,
 }: {
@@ -148,6 +166,19 @@ function PlanDetailContent({
     title?: string
     overviewMarkdown?: string
     budgetAllocationJson?: string
+    budgetCents?: number
+    theme?: string
+    headcount?: number
+    partyDate?: string
+    zipCode?: string
+    ageRangeMin?: number
+    ageRangeMax?: number
+    specialNeeds?: string
+    venueType?: string
+    dietaryNotes?: string
+    activityStyle?: string
+    childNameOrNickname?: string
+    rsvpDeadline?: string
   }) => Promise<unknown>
   setTaskDone: (args: {
     taskId: Id<'planTasks'>
@@ -168,6 +199,8 @@ function PlanDetailContent({
     label: string
     quantity?: string
   }) => Promise<unknown>
+  deletePlan: (args: { planId: Id<'partyPlans'> }) => Promise<unknown>
+  navigate: ReturnType<typeof useNavigate>
   addGuest: (args: {
     planId: Id<'partyPlans'>
     name: string
@@ -181,28 +214,115 @@ function PlanDetailContent({
 }) {
   const { plan, tasks, shopping, timeline } = bundle
   const tier = subscriptionTier(sub ?? null)
+  const partyDateLabel =
+    formatPartyWeekdayLong(plan.partyDate) ?? plan.partyDate
+  const planDisplayTitle =
+    plan.childNameOrNickname?.trim() && plan.childNameOrNickname.trim().length > 0
+      ? `${plan.childNameOrNickname.trim()}'s birthday`
+      : plan.title
 
   const [titleEdit, setTitleEdit] = useState(plan.title)
   const [overviewEdit, setOverviewEdit] = useState(plan.overviewMarkdown ?? '')
   const [guestName, setGuestName] = useState('')
   const [planEditorOpen, setPlanEditorOpen] = useState(false)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [detailTitle, setDetailTitle] = useState(plan.title)
+  const [detailChildName, setDetailChildName] = useState(
+    plan.childNameOrNickname ?? '',
+  )
+  const [detailTheme, setDetailTheme] = useState(plan.theme)
+  const [detailDate, setDetailDate] = useState(plan.partyDate)
+  const [detailHeadcount, setDetailHeadcount] = useState(String(plan.headcount))
+  const [detailBudgetEuros, setDetailBudgetEuros] = useState(
+    String(Math.round(plan.budgetCents / 100)),
+  )
+  const [detailZipCode, setDetailZipCode] = useState(plan.zipCode)
+  const [detailAgeMin, setDetailAgeMin] = useState(String(plan.ageRangeMin))
+  const [detailAgeMax, setDetailAgeMax] = useState(String(plan.ageRangeMax))
+  const [detailVenueType, setDetailVenueType] = useState(plan.venueType ?? '')
+  const [detailDietaryNotes, setDetailDietaryNotes] = useState(
+    plan.dietaryNotes ?? '',
+  )
+  const [detailActivityStyle, setDetailActivityStyle] = useState(
+    plan.activityStyle ?? '',
+  )
+  const [detailSpecialNeeds, setDetailSpecialNeeds] = useState(
+    plan.specialNeeds ?? '',
+  )
+  const [detailRsvpDeadline, setDetailRsvpDeadline] = useState(
+    plan.rsvpDeadline ?? '',
+  )
+  const [savingDetails, setSavingDetails] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   return (
     <div className="space-y-6">
-      <div className="border-border bg-card space-y-2 rounded-lg border-[0.5px] p-4 shadow-sm md:p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={plan.status === 'ready' ? 'default' : 'secondary'}>
-            {plan.status}
-          </Badge>
-          {tier === 'pro' && <Badge variant="outline">Pro</Badge>}
+      <div className="border-border bg-card space-y-3 rounded-lg border-[0.5px] p-4 shadow-sm md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={plan.status === 'ready' ? 'default' : 'secondary'}>
+              {plan.status}
+            </Badge>
+            {tier === 'pro' && <Badge variant="outline">Pro</Badge>}
+          </div>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogTrigger
+              render={
+                <Button variant="destructive" size="sm" disabled={deleting} />
+              }
+            >
+              <Trash2 className="size-4" />
+              Delete party
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete this party?</DialogTitle>
+                <DialogDescription>
+                  This will permanently remove this plan and all related items.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter showCloseButton>
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  onClick={() => {
+                    setDeleting(true)
+                    void deletePlan({ planId })
+                      .then(() => {
+                        void navigate('/')
+                      })
+                      .catch((error) => {
+                        setDeleting(false)
+                        setDeleteDialogOpen(false)
+                        console.error('Failed to delete party', error)
+                        window.alert('Could not delete party. Please try again.')
+                      })
+                  }}
+                >
+                  {deleting ? 'Deleting…' : 'Confirm delete'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
         <h1 className="text-foreground font-display text-[22px] font-normal tracking-tight">
-          {plan.title}
+          {planDisplayTitle}
         </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          {plan.theme} · {plan.partyDate} · ~{plan.headcount} guests · €
-          {(plan.budgetCents / 100).toFixed(0)} budget
-        </p>
+        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+          <span className="border-border bg-background/70 rounded-pill border-[0.5px] px-2.5 py-1">
+            {plan.theme}
+          </span>
+          <span className="border-border bg-background/70 rounded-pill border-[0.5px] px-2.5 py-1">
+            {partyDateLabel}
+          </span>
+          <span className="border-border bg-background/70 rounded-pill border-[0.5px] px-2.5 py-1">
+            ~{plan.headcount} guests
+          </span>
+          <span className="bg-primary/12 text-foreground rounded-pill px-2.5 py-1 font-medium">
+            €{(plan.budgetCents / 100).toFixed(0)} budget
+          </span>
+        </div>
       </div>
 
       {plan.status === 'generating' && (
@@ -261,16 +381,246 @@ function PlanDetailContent({
           <BudgetBreakdown
             budgetAllocationJson={plan.budgetAllocationJson}
             budgetCents={plan.budgetCents}
+            onSaveBudget={(nextBudgetCents, nextBudgetAllocationJson) =>
+              updateOverview({
+                planId,
+                budgetCents: nextBudgetCents,
+                budgetAllocationJson: nextBudgetAllocationJson,
+              })
+            }
           />
 
-          <section className="space-y-3" aria-labelledby="plan-summary-heading">
-            <h2
-              id="plan-summary-heading"
-              className="text-foreground font-display text-lg font-normal tracking-tight"
-            >
-              Plan summary
-            </h2>
-            <div className={cn(PLAN_TAB_PANEL, 'p-4 md:p-5')}>
+          <section aria-labelledby="plan-summary-heading">
+            <div className={cn(PLAN_TAB_PANEL, 'bg-card p-5 md:p-6')}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2
+                  id="plan-summary-heading"
+                  className="text-foreground font-display text-lg font-normal tracking-tight"
+                >
+                  Plan summary
+                </h2>
+                <Dialog
+                  open={detailsDialogOpen}
+                  onOpenChange={(nextOpen) => {
+                    setDetailsDialogOpen(nextOpen)
+                    if (nextOpen) {
+                      setDetailTitle(plan.title)
+                      setDetailChildName(plan.childNameOrNickname ?? '')
+                      setDetailTheme(plan.theme)
+                      setDetailDate(plan.partyDate)
+                      setDetailHeadcount(String(plan.headcount))
+                      setDetailBudgetEuros(String(Math.round(plan.budgetCents / 100)))
+                      setDetailZipCode(plan.zipCode)
+                      setDetailAgeMin(String(plan.ageRangeMin))
+                      setDetailAgeMax(String(plan.ageRangeMax))
+                      setDetailVenueType(plan.venueType ?? '')
+                      setDetailDietaryNotes(plan.dietaryNotes ?? '')
+                      setDetailActivityStyle(plan.activityStyle ?? '')
+                      setDetailSpecialNeeds(plan.specialNeeds ?? '')
+                      setDetailRsvpDeadline(plan.rsvpDeadline ?? '')
+                    }
+                  }}
+                >
+                  <DialogTrigger render={<Button variant="outline" size="sm" />}>
+                    <Pencil className="size-4" />
+                    Edit details
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Edit party details</DialogTitle>
+                    <DialogDescription>
+                      Update plan summary details for this party.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-title">Plan name</Label>
+                      <Input
+                        id="detail-title"
+                        value={detailTitle}
+                        onChange={(e) => setDetailTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-child-name">Birthday kid</Label>
+                      <Input
+                        id="detail-child-name"
+                        value={detailChildName}
+                        onChange={(e) => setDetailChildName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-theme">Theme</Label>
+                      <Input
+                        id="detail-theme"
+                        value={detailTheme}
+                        onChange={(e) => setDetailTheme(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-date">Party date</Label>
+                        <Input
+                          id="detail-date"
+                          type="date"
+                          value={detailDate}
+                          onChange={(e) => setDetailDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-rsvp-deadline">RSVP deadline</Label>
+                        <Input
+                          id="detail-rsvp-deadline"
+                          type="date"
+                          value={detailRsvpDeadline}
+                          onChange={(e) => setDetailRsvpDeadline(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-headcount">Guest count</Label>
+                        <Input
+                          id="detail-headcount"
+                          type="number"
+                          min={1}
+                          value={detailHeadcount}
+                          onChange={(e) => setDetailHeadcount(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-budget">Budget (EUR)</Label>
+                        <Input
+                          id="detail-budget"
+                          type="number"
+                          min={1}
+                          value={detailBudgetEuros}
+                          onChange={(e) => setDetailBudgetEuros(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-zip">Zip code</Label>
+                        <Input
+                          id="detail-zip"
+                          value={detailZipCode}
+                          onChange={(e) => setDetailZipCode(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-age-min">Youngest age</Label>
+                        <Input
+                          id="detail-age-min"
+                          type="number"
+                          min={1}
+                          value={detailAgeMin}
+                          onChange={(e) => setDetailAgeMin(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="detail-age-max">Oldest age</Label>
+                        <Input
+                          id="detail-age-max"
+                          type="number"
+                          min={1}
+                          value={detailAgeMax}
+                          onChange={(e) => setDetailAgeMax(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-venue">Venue type</Label>
+                      <Input
+                        id="detail-venue"
+                        value={detailVenueType}
+                        onChange={(e) => setDetailVenueType(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-activity">Activity style</Label>
+                      <Input
+                        id="detail-activity"
+                        value={detailActivityStyle}
+                        onChange={(e) => setDetailActivityStyle(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-dietary">Dietary notes</Label>
+                      <Textarea
+                        id="detail-dietary"
+                        rows={3}
+                        value={detailDietaryNotes}
+                        onChange={(e) => setDetailDietaryNotes(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="detail-special-needs">Special needs</Label>
+                      <Textarea
+                        id="detail-special-needs"
+                        rows={3}
+                        value={detailSpecialNeeds}
+                        onChange={(e) => setDetailSpecialNeeds(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter showCloseButton>
+                    <Button
+                      disabled={savingDetails}
+                      onClick={() => {
+                        const nextHeadcount = Number(detailHeadcount)
+                        const nextBudgetEuros = Number(detailBudgetEuros)
+                        const nextAgeMin = Number(detailAgeMin)
+                        const nextAgeMax = Number(detailAgeMax)
+                        if (
+                          !Number.isFinite(nextHeadcount) ||
+                          nextHeadcount < 1 ||
+                          !Number.isFinite(nextBudgetEuros) ||
+                          nextBudgetEuros < 1 ||
+                          !Number.isFinite(nextAgeMin) ||
+                          !Number.isFinite(nextAgeMax) ||
+                          nextAgeMin < 1 ||
+                          nextAgeMax < 1 ||
+                          nextAgeMin > nextAgeMax
+                        ) {
+                          window.alert('Please check guest count, budget, and age range.')
+                          return
+                        }
+                        setSavingDetails(true)
+                        void updateOverview({
+                          planId,
+                          title: detailTitle.trim() || plan.title,
+                          childNameOrNickname: detailChildName.trim() || undefined,
+                          theme: detailTheme.trim() || plan.theme,
+                          partyDate: detailDate || plan.partyDate,
+                          rsvpDeadline: detailRsvpDeadline || undefined,
+                          headcount: Math.round(nextHeadcount),
+                          budgetCents: Math.round(nextBudgetEuros * 100),
+                          zipCode: detailZipCode.trim() || plan.zipCode,
+                          ageRangeMin: Math.round(nextAgeMin),
+                          ageRangeMax: Math.round(nextAgeMax),
+                          venueType: detailVenueType.trim() || undefined,
+                          dietaryNotes: detailDietaryNotes.trim() || undefined,
+                          activityStyle: detailActivityStyle.trim() || undefined,
+                          specialNeeds: detailSpecialNeeds.trim() || undefined,
+                        })
+                          .then(() => {
+                            setSavingDetails(false)
+                            setDetailsDialogOpen(false)
+                          })
+                          .catch((error) => {
+                            setSavingDetails(false)
+                            console.error('Failed to update party details', error)
+                            window.alert('Could not save party details. Please try again.')
+                          })
+                      }}
+                    >
+                      {savingDetails ? 'Saving…' : 'Save changes'}
+                    </Button>
+                  </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <PlanSummaryMarkdown markdown={overviewEdit} />
             </div>
           </section>
