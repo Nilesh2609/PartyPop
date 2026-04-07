@@ -21,6 +21,7 @@ import type * as stripeNode from "../stripeNode.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as users from "../users.js";
 import type * as vendors from "../vendors.js";
+import type * as vendorsLive from "../vendorsLive.js";
 
 import type {
   ApiFromModules,
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   subscriptions: typeof subscriptions;
   users: typeof users;
   vendors: typeof vendors;
+  vendorsLive: typeof vendorsLive;
 }>;
 
 /**

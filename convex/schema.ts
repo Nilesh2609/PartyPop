@@ -131,4 +131,15 @@ export default defineSchema({
     planId: v.optional(v.id('partyPlans')),
     createdAt: v.number(),
   }).index('by_user', ['userId']),
+
+  /** Yelp / external search results — not tied to `vendors` rows */
+  externalVendorClicks: defineTable({
+    userId: v.string(),
+    planId: v.optional(v.id('partyPlans')),
+    category: v.string(),
+    businessName: v.string(),
+    url: v.string(),
+    source: v.literal('yelp'),
+    createdAt: v.number(),
+  }).index('by_user', ['userId']),
 })

@@ -81,6 +81,32 @@ export const logVendorContact = mutation({
   },
 })
 
+export const logExternalVendorContact = mutation({
+  args: {
+    planId: v.optional(v.id('partyPlans')),
+    category: v.string(),
+    businessName: v.string(),
+    url: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireIdentity(ctx.auth)
+    if (args.planId) {
+      const plan = await ctx.db.get(args.planId)
+      if (!plan) throw new Error('Plan not found')
+      assertPlanOwner(plan, user.subject)
+    }
+    await ctx.db.insert('externalVendorClicks', {
+      userId: user.subject,
+      planId: args.planId,
+      category: args.category,
+      businessName: args.businessName,
+      url: args.url,
+      source: 'yelp',
+      createdAt: Date.now(),
+    })
+  },
+})
+
 export const adminCreateVendor = mutation({
   args: {
     name: v.string(),

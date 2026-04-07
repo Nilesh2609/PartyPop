@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../convex/_generated/api'
@@ -61,6 +61,22 @@ type PlanBundle = {
   tasks: Doc<'planTasks'>[]
   shopping: Doc<'planShoppingItems'>[]
   timeline: Doc<'planTimelineSlots'>[]
+}
+
+type LiveVendorRow = {
+  externalId: string
+  name: string
+  rating: number | null
+  reviewCount: number | null
+  url: string
+  priceHint: string | null
+  addressSnippet: string | null
+}
+
+type LiveByCategory = {
+  inflatables: LiveVendorRow[]
+  cakes: LiveVendorRow[]
+  entertainment: LiveVendorRow[]
 }
 
 export function PlanDetailPage() {
@@ -255,6 +271,13 @@ function PlanDetailContent({
   const [savingDetails, setSavingDetails] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const searchLiveVendors = useAction(api.vendorsLive.searchByZip)
+  const logExternalVendor = useMutation(api.vendors.logExternalVendorContact)
+  const [vendorZipInput, setVendorZipInput] = useState(plan.zipCode)
+  const [liveVendors, setLiveVendors] = useState<LiveByCategory | null>(null)
+  const [liveSearchLoading, setLiveSearchLoading] = useState(false)
+  const [liveSearchError, setLiveSearchError] = useState<string | null>(null)
 
   return (
     <div className="space-y-6">
@@ -816,69 +839,243 @@ function PlanDetailContent({
 
         <TabsContent value="vendors" className="pt-2">
           <div className={cn(PLAN_TAB_PANEL, 'space-y-6 p-4 md:p-5')}>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Indicative pricing only — tap through to contact vendors. We log
-              when you open a link to improve recommendations later.
-            </p>
-            {vendors === undefined && (
-              <p className="text-muted-foreground text-sm">Loading vendors…</p>
-            )}
-            {vendors &&
-              (['inflatables', 'cakes', 'entertainment'] as const).map(
-                (cat, i) => (
-                  <div
-                    key={cat}
-                    className={
-                      i > 0
-                        ? 'border-border border-t border-[0.5px] pt-6'
-                        : undefined
-                    }
+            <div className="space-y-3">
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Enter your ZIP or postal code to load real nearby businesses
+                (Yelp). Demo suggestions stay available below until you search.
+              </p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="vendor-zip">ZIP / postal code</Label>
+                  <Input
+                    id="vendor-zip"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    maxLength={12}
+                    className="w-40"
+                    value={vendorZipInput}
+                    onChange={(e) => setVendorZipInput(e.target.value)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  disabled={liveSearchLoading}
+                  onClick={() => {
+                    setLiveSearchLoading(true)
+                    setLiveSearchError(null)
+                    void (async () => {
+                      try {
+                        const result = await searchLiveVendors({
+                          zipCode: vendorZipInput.trim(),
+                        })
+                        if (result.ok === false) {
+                          setLiveVendors(null)
+                          setLiveSearchError(result.error)
+                          return
+                        }
+                        setLiveVendors({
+                          inflatables: result.inflatables,
+                          cakes: result.cakes,
+                          entertainment: result.entertainment,
+                        })
+                        if (vendorZipInput.trim() !== plan.zipCode) {
+                          void updateOverview({
+                            planId,
+                            zipCode: vendorZipInput.trim(),
+                          })
+                        }
+                      } catch (e) {
+                        setLiveVendors(null)
+                        setLiveSearchError(
+                          e instanceof Error ? e.message : 'Search failed',
+                        )
+                      } finally {
+                        setLiveSearchLoading(false)
+                      }
+                    })()
+                  }}
+                >
+                  {liveSearchLoading ? 'Searching…' : 'Search nearby'}
+                </Button>
+                {liveVendors ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setLiveVendors(null)
+                      setLiveSearchError(null)
+                    }}
                   >
-                    <h3 className="text-foreground font-display mb-3 text-lg font-normal capitalize tracking-tight">
-                      {cat}
-                    </h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {vendors[cat].map((v: Doc<'vendors'>) => (
-                        <div
-                          key={v._id}
-                          className="border-border bg-background/80 rounded-lg border-[0.5px] p-4 shadow-none"
-                        >
-                          <p className="text-foreground text-base font-medium leading-snug">
-                            {v.name}
-                          </p>
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            Reliability {v.reliabilityScore}
-                            {v.rating != null ? ` · ★ ${v.rating}` : ''} ·{' '}
-                            {v.priceBand}
-                          </p>
-                          {v.indicativePriceNote ? (
-                            <p className="text-foreground/90 mt-2 text-sm leading-relaxed">
-                              {v.indicativePriceNote}
-                            </p>
-                          ) : null}
-                          <a
-                            href={v.contactUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={cn(
-                              buttonVariants({
-                                variant: 'outline',
-                                size: 'sm',
-                              }),
-                              'mt-3 inline-flex',
-                            )}
-                            onClick={() =>
-                              void logVendor({ vendorId: v._id, planId })
-                            }
-                          >
-                            Contact / book
-                          </a>
+                    Show demo only
+                  </Button>
+                ) : null}
+              </div>
+              {liveSearchError ? (
+                <p className="text-destructive text-sm">{liveSearchError}</p>
+              ) : null}
+            </div>
+
+            {liveVendors ? (
+              <>
+                <p className="text-muted-foreground text-sm">
+                  Live results near{' '}
+                  <span className="text-foreground font-medium">
+                    {vendorZipInput.trim()}
+                  </span>
+                  . Opens Yelp in a new tab.
+                </p>
+                {(['inflatables', 'cakes', 'entertainment'] as const).map(
+                  (cat, i) => (
+                    <div
+                      key={cat}
+                      className={
+                        i > 0
+                          ? 'border-border border-t border-[0.5px] pt-6'
+                          : undefined
+                      }
+                    >
+                      <h3 className="text-foreground font-display mb-3 text-lg font-normal capitalize tracking-tight">
+                        {cat}
+                      </h3>
+                      {liveVendors[cat].length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                          No matches in this category for this area.
+                        </p>
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {liveVendors[cat].map((row: LiveVendorRow) => (
+                            <div
+                              key={row.externalId}
+                              className="border-border bg-background/80 rounded-lg border-[0.5px] p-4 shadow-none"
+                            >
+                              <p className="text-foreground text-base font-medium leading-snug">
+                                {row.name}
+                              </p>
+                              <p className="text-muted-foreground mt-1 text-xs">
+                                {row.rating != null ? `★ ${row.rating}` : '—'}
+                                {row.reviewCount != null
+                                  ? ` · ${row.reviewCount} reviews`
+                                  : ''}
+                                {row.priceHint
+                                  ? ` · ${row.priceHint}`
+                                  : ''}
+                              </p>
+                              {row.addressSnippet ? (
+                                <p className="text-foreground/90 mt-2 text-sm leading-relaxed">
+                                  {row.addressSnippet}
+                                </p>
+                              ) : null}
+                              <a
+                                href={row.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={cn(
+                                  buttonVariants({
+                                    variant: 'outline',
+                                    size: 'sm',
+                                  }),
+                                  'mt-3 inline-flex',
+                                )}
+                                onClick={() =>
+                                  void logExternalVendor({
+                                    planId,
+                                    category: cat,
+                                    businessName: row.name,
+                                    url: row.url,
+                                  })
+                                }
+                              >
+                                View on Yelp
+                              </a>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                ),
-              )}
+                  ),
+                )}
+                <p className="text-muted-foreground text-center text-[11px]">
+                  <a
+                    href="https://www.yelp.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2"
+                  >
+                    Powered by Yelp
+                  </a>
+                </p>
+              </>
+            ) : null}
+
+            {!liveVendors ? (
+              <>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Demo catalog (sample data). Indicative pricing only — tap
+                  through to contact vendors. We log when you open a link.
+                </p>
+                {vendors === undefined && (
+                  <p className="text-muted-foreground text-sm">
+                    Loading vendors…
+                  </p>
+                )}
+                {vendors &&
+                  (['inflatables', 'cakes', 'entertainment'] as const).map(
+                    (cat, i) => (
+                      <div
+                        key={cat}
+                        className={
+                          i > 0
+                            ? 'border-border border-t border-[0.5px] pt-6'
+                            : undefined
+                        }
+                      >
+                        <h3 className="text-foreground font-display mb-3 text-lg font-normal capitalize tracking-tight">
+                          {cat}
+                        </h3>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {vendors[cat].map((v: Doc<'vendors'>) => (
+                            <div
+                              key={v._id}
+                              className="border-border bg-background/80 rounded-lg border-[0.5px] p-4 shadow-none"
+                            >
+                              <p className="text-foreground text-base font-medium leading-snug">
+                                {v.name}
+                              </p>
+                              <p className="text-muted-foreground mt-1 text-xs">
+                                Reliability {v.reliabilityScore}
+                                {v.rating != null ? ` · ★ ${v.rating}` : ''} ·{' '}
+                                {v.priceBand}
+                              </p>
+                              {v.indicativePriceNote ? (
+                                <p className="text-foreground/90 mt-2 text-sm leading-relaxed">
+                                  {v.indicativePriceNote}
+                                </p>
+                              ) : null}
+                              <a
+                                href={v.contactUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={cn(
+                                  buttonVariants({
+                                    variant: 'outline',
+                                    size: 'sm',
+                                  }),
+                                  'mt-3 inline-flex',
+                                )}
+                                onClick={() =>
+                                  void logVendor({ vendorId: v._id, planId })
+                                }
+                              >
+                                Contact / book
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  )}
+              </>
+            ) : null}
           </div>
         </TabsContent>
 
