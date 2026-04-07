@@ -1,6 +1,7 @@
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react'
 import { Link, Outlet } from 'react-router-dom'
 import { SubscriptionBootstrap } from '@/components/auth/SubscriptionBootstrap'
+import { VendorSeedBootstrap } from '@/components/auth/VendorSeedBootstrap'
 import { PartyPopWordmark } from '@/components/brand/PartyPopWordmark'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -12,8 +13,9 @@ export function AppLayout() {
     <div className="bg-background flex min-h-svh flex-col">
       <SignedIn>
         <SubscriptionBootstrap />
+        <VendorSeedBootstrap />
       </SignedIn>
-      <header className="border-border bg-header shrink-0 border-b border-[0.5px] shadow-[0_1px_0_0_color-mix(in_srgb,var(--brand-border)_65%,transparent)]">
+      <header className="border-border bg-header sticky top-0 z-50 shrink-0 border-b border-[0.5px] shadow-[0_1px_0_0_color-mix(in_srgb,var(--brand-border)_65%,transparent)]">
         <div
           className={cn(
             'mx-auto flex w-full items-center justify-between gap-4 px-4 py-4 md:px-6',

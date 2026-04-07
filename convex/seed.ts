@@ -150,6 +150,21 @@ export const seedDemoCatalog = mutation({
   },
 })
 
+/** Auto-seed: inserts demo vendors when the table is empty. No admin check. */
+export const ensureDemoVendors = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const any = await ctx.db.query('vendors').take(1)
+    if (any.length > 0) return { inserted: 0 }
+    let inserted = 0
+    for (const row of DEMO) {
+      await ctx.db.insert('vendors', { ...row })
+      inserted++
+    }
+    return { inserted }
+  },
+})
+
 /** Dev helper: reseed demo vendors after clearing the table (admin only). */
 export const forceReseedDemoCatalog = mutation({
   args: { confirm: v.literal('yes') },

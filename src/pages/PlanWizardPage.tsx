@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/incompatible-library -- react-hook-form watch */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
-import { useMutation } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { useMemo } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -31,6 +31,7 @@ import {
   type PlanWizardValues,
   wizardValuesToCents,
 } from '@/lib/planWizardSchema'
+import { subscriptionTier } from '@/lib/subscription'
 import { useWizardStore } from '@/store/wizardStore'
 
 const TOTAL_STEPS = 10
@@ -63,6 +64,8 @@ export function PlanWizardPage() {
   const navigate = useNavigate()
   const { step, setStep, draft, patchDraft, reset } = useWizardStore()
   const createPlan = useMutation(api.partyPlans.createAndGenerate)
+  const plans = useQuery(api.partyPlans.listMine, { includeArchived: false })
+  const sub = useQuery(api.subscriptions.getMine)
 
   const form = useForm<PlanWizardValues>({
     resolver: zodResolver(planWizardSchema) as Resolver<PlanWizardValues>,
@@ -71,11 +74,14 @@ export function PlanWizardPage() {
   })
   const budgetCategories = form.watch('budgetCategories') ?? []
 
-
   const progress = useMemo(
     () => Math.round(((step + 1) / TOTAL_STEPS) * 100),
     [step],
   )
+
+  const tier = subscriptionTier(sub ?? null)
+  const activePlanCount = plans?.length ?? 0
+  const freeLimitReached = tier === 'free' && activePlanCount >= 3
 
   const fieldsForStep = (s: number): (keyof PlanWizardValues)[] => {
     switch (s) {
@@ -159,6 +165,42 @@ export function PlanWizardPage() {
   const { register, formState, setValue, watch } = form
   const venueType = watch('venueType')
   const activityStyle = watch('activityStyle')
+
+  if (plans === undefined || sub === undefined) {
+    return (
+      <div className="mx-auto max-w-lg">
+        <Card>
+          <CardContent className="text-muted-foreground py-8 text-center text-sm">
+            Checking your plan limits...
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (freeLimitReached) {
+    return (
+      <div className="mx-auto max-w-lg">
+        <Card>
+          <CardHeader>
+            <CardTitle>Free plan limit reached</CardTitle>
+            <CardDescription>
+              You already have 3 active party plans. Upgrade to Pro to create
+              unlimited plans.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button onClick={() => void navigate('/account')}>
+              Upgrade to Pro
+            </Button>
+            <Button variant="outline" onClick={() => void navigate('/plans')}>
+              Back to plans
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -322,7 +364,7 @@ export function PlanWizardPage() {
 
           {step === 4 && (
             <div className="space-y-2">
-              <Label htmlFor="zipCode">Zip code (launch metro)</Label>
+              <Label htmlFor="zipCode">Zip code</Label>
               <Input
                 id="zipCode"
                 inputMode="numeric"
@@ -331,8 +373,7 @@ export function PlanWizardPage() {
                 {...register('zipCode')}
               />
               <p className="text-muted-foreground text-xs">
-                MVP maps all zips to the demo metro so vendor shortlists always
-                populate.
+                Used to find local vendors near you.
               </p>
               {formState.errors.zipCode && (
                 <p className="text-destructive text-sm">
